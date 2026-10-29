@@ -31,6 +31,7 @@
 // (replug, sleep/wake power loss) creates a new IOUSBHostDevice without it.
 #define kQCAAttemptedKey "QCARomePatchRAM-Attempted"
 
+#define super IOService
 OSDefineMetaClassAndStructors(QCARomePatchRAM, IOService)
 
 namespace {
