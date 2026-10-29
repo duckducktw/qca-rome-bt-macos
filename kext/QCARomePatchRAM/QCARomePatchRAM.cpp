@@ -160,24 +160,42 @@ bool QCARomePatchRAM::openDeviceAndInterface(IOUSBHostDevice *dev, uint8_t *conf
 
     // Find interface 0 among the device's children (interfaces may be
     // published shortly after setConfiguration).
-    for (int attempt = 0; attempt < 200 && !fInterface; attempt++) {
-        OSIterator *it = dev->getChildIterator(gIOServicePlane);
-        if (it) {
-            while (OSObject *o = it->getNextObject()) {
-                IOUSBHostInterface *intf = OSDynamicCast(IOUSBHostInterface, o);
-                if (!intf)
-                    continue;
-                const StandardUSB::InterfaceDescriptor *id = intf->getInterfaceDescriptor();
-                if (id && id->bInterfaceNumber == 0 && id->bAlternateSetting == 0) {
-                    intf->retain();
-                    fInterface = intf;
-                    break;
+    auto findInterface0 = [&](int attempts) {
+        for (int attempt = 0; attempt < attempts && !fInterface; attempt++) {
+            OSIterator *it = dev->getChildIterator(gIOServicePlane);
+            if (it) {
+                while (OSObject *o = it->getNextObject()) {
+                    IOUSBHostInterface *intf = OSDynamicCast(IOUSBHostInterface, o);
+                    if (!intf)
+                        continue;
+                    const StandardUSB::InterfaceDescriptor *id = intf->getInterfaceDescriptor();
+                    if (id && id->bInterfaceNumber == 0 && id->bAlternateSetting == 0) {
+                        intf->retain();
+                        fInterface = intf;
+                        break;
+                    }
                 }
+                it->release();
             }
-            it->release();
+            if (!fInterface)
+                IOSleep(10);
         }
-        if (!fInterface)
-            IOSleep(10);
+    };
+    findInterface0(50);
+    if (!fInterface && current != 0) {
+        // Device came up already configured (e.g. by firmware or a previous
+        // host) but IOUSBHostFamily never published interface nubs because no
+        // driver ran setConfiguration on this boot. Unconfigure and configure
+        // again so the interfaces are created.
+        LOG("configured but no interface nubs; re-applying configuration %u", cd->bConfigurationValue);
+        dev->setConfiguration(0, false);
+        IOReturn rc = dev->setConfiguration(cd->bConfigurationValue, true);
+        if (rc != kIOReturnSuccess) {
+            LOG("re-setConfiguration(%u) failed (0x%08x)", cd->bConfigurationValue, rc);
+            return false;
+        }
+        *weConfigured = true;
+        findInterface0(200);
     }
     if (!fInterface) {
         LOG("interface 0 not found");
