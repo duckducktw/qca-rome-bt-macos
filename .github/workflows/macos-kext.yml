@@ -1,0 +1,57 @@
+name: macOS kext build
+
+on:
+  workflow_dispatch:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  host-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Host tests (gcc + clang, ASan/UBSan)
+        run: |
+          make test
+          make clean
+          make CC=clang CXX=clang++ test
+
+  kext:
+    runs-on: macos-15-intel
+    timeout-minutes: 20
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+      - name: Fetch pinned MacKernelSDK
+        run: |
+          git clone --filter=blob:none https://github.com/acidanthera/MacKernelSDK.git MacKernelSDK
+          git -C MacKernelSDK checkout 3f750085caa17ec3a7880f11c11bf4f48cd6a164
+          test -f MacKernelSDK/Library/x86_64/libkmod.a
+      - name: Host tests on macOS clang
+        run: make CC=clang CXX=clang++ test
+      - name: Build kext
+        run: ./scripts/build_kext_macos.sh "$RUNNER_TEMP/kext-build"
+      - name: Sign ad-hoc and package
+        run: |
+          set -euo pipefail
+          K="$RUNNER_TEMP/kext-build/QCARomePatchRAM.kext"
+          codesign --force --sign - "$K"
+          codesign --verify --strict --verbose=2 "$K"
+          mkdir -p dist
+          ditto -c -k --norsrc --keepParent "$K" dist/QCARomePatchRAM.zip
+          cp firmware/LICENSE.QualcommAtheros_ath10k firmware/NOTICE.qca dist/
+          (cd dist && shasum -a 256 QCARomePatchRAM.zip > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: QCARomePatchRAM
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
