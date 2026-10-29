@@ -7,7 +7,10 @@ Pinned to linux-firmware commit d0039fd797d7776d89f00c22c45754914a96706e.
 import argparse, hashlib, pathlib, urllib.request
 
 COMMIT = "d0039fd797d7776d89f00c22c45754914a96706e"
-BASE = f"https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/{{}}?id={COMMIT}"
+MIRRORS = [
+    f"https://gitlab.com/kernel-firmware/linux-firmware/-/raw/{COMMIT}/{{}}",
+    f"https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/{{}}?id={COMMIT}",
+]
 FILES = {
     "qca/rampatch_usb_00000302.bin": ("qca_rampatch_usb_00000302", 68644,
         "f0d15f6d7c4ce17270c951287222699c0909bea9028ecb84d2e8be6fa364691e"),
@@ -19,8 +22,17 @@ def fetch(path, cache):
     local = cache / pathlib.Path(path).name
     if not local.exists():
         cache.mkdir(parents=True, exist_ok=True)
-        with urllib.request.urlopen(BASE.format(path), timeout=60) as r:
-            local.write_bytes(r.read())
+        last = None
+        for base in MIRRORS:
+            try:
+                req = urllib.request.Request(base.format(path), headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(req, timeout=60) as r:
+                    local.write_bytes(r.read())
+                break
+            except Exception as e:  # try next mirror; hash is checked by caller
+                last = e
+        else:
+            raise SystemExit(f"{path}: all mirrors failed: {last}")
     return local.read_bytes()
 
 def main():
