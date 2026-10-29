@@ -20,6 +20,21 @@
 	<string>0.1.0</string>
 	<key>IOKitPersonalities</key>
 	<dict>
+		<key>04ca_3016 Apple USB HCI transport</key>
+		<dict>
+			<key>CFBundleIdentifier</key>
+			<string>com.apple.iokit.IOBluetoothHostControllerUSBTransport</string>
+			<key>IOClass</key>
+			<string>IOBluetoothHostControllerUSBTransport</string>
+			<key>IOProbeScore</key>
+			<integer>3000</integer>
+			<key>IOProviderClass</key>
+			<string>IOUSBHostDevice</string>
+			<key>idProduct</key>
+			<integer>12310</integer>
+			<key>idVendor</key>
+			<integer>1226</integer>
+		</dict>
 		<key>LiteOn-04ca-3016</key>
 		<dict>
 			<key>CFBundleIdentifier</key>
@@ -42,13 +57,13 @@
 	<dict>
 		<key>com.apple.iokit.IOUSBHostFamily</key>
 		<string>1.0.1</string>
+		<key>com.apple.kpi.bsd</key>
+		<string>12.0</string>
 		<key>com.apple.kpi.iokit</key>
 		<string>12.0</string>
 		<key>com.apple.kpi.libkern</key>
 		<string>12.0</string>
 		<key>com.apple.kpi.mach</key>
-		<string>12.0</string>
-		<key>com.apple.kpi.bsd</key>
 		<string>12.0</string>
 	</dict>
 	<key>OSBundleRequired</key>
