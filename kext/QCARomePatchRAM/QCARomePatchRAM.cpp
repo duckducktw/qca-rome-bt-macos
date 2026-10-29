@@ -142,11 +142,15 @@ bool QCARomePatchRAM::openDeviceAndInterface(IOUSBHostDevice *dev, uint8_t *conf
         return false;
     }
     *configValueOut = cd->bConfigurationValue;
+    LOG("current configuration %u, descriptor bConfigurationValue %u, interfaces %u",
+        current, cd->bConfigurationValue, cd->bNumInterfaces);
 
     if (current == 0) {
-        // Configure without starting interface matching so nobody else grabs
-        // interface 0 while we use EP2 in DFU mode; we re-register later.
-        IOReturn rc = dev->setConfiguration(cd->bConfigurationValue, false);
+        // Interfaces are only published once the device is configured with
+        // interface matching enabled (same as acidanthera/BrcmPatchRAM). We
+        // open interface 0 ourselves immediately after, so a competing HCI
+        // driver cannot start DFU traffic on EP2 before the upload finishes.
+        IOReturn rc = dev->setConfiguration(cd->bConfigurationValue, true);
         if (rc != kIOReturnSuccess) {
             LOG("setConfiguration(%u) failed (0x%08x)", cd->bConfigurationValue, rc);
             return false;
@@ -156,7 +160,7 @@ bool QCARomePatchRAM::openDeviceAndInterface(IOUSBHostDevice *dev, uint8_t *conf
 
     // Find interface 0 among the device's children (interfaces may be
     // published shortly after setConfiguration).
-    for (int attempt = 0; attempt < 50 && !fInterface; attempt++) {
+    for (int attempt = 0; attempt < 200 && !fInterface; attempt++) {
         OSIterator *it = dev->getChildIterator(gIOServicePlane);
         if (it) {
             while (OSObject *o = it->getNextObject()) {
