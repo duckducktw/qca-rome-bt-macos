@@ -28,6 +28,11 @@
 			<string>IOBluetoothHostControllerUSBTransport</string>
 			<key>IOProbeScore</key>
 			<integer>3000</integer>
+			<key>IOPropertyMatch</key>
+			<dict>
+				<key>QCARomePatchRAM-Result</key>
+				<string>ok</string>
+			</dict>
 			<key>IOProviderClass</key>
 			<string>IOUSBHostDevice</string>
 			<key>idProduct</key>
